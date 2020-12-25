@@ -46,16 +46,28 @@ func newScanner(buf []byte) *scanner {
 	return &scanner{buf: bytes.NewBuffer(buf), currLine: 1, currCol: 0}
 }
 
+func (s *scanner) Peek() (rune, error) {
+	next, _, err := s.buf.ReadRune()
+	if err != nil {
+		return next, err
+	}
+	if err := s.buf.UnreadRune(); err != nil {
+		return rune(0), err
+	}
+	return next, nil
+}
+
 func (s *scanner) Next() (rune, error) {
 	next, _, err := s.buf.ReadRune()
 	if err != nil {
-		return rune(0), err
+		return next, err
 	}
 
 	if next == '\n' {
 		s.currLine++
 		s.currCol = 0
 	}
+	s.currCol++
 	return next, nil
 }
 
@@ -69,10 +81,6 @@ func (t *scanner) ExpectNext() (rune, error) {
 
 func (s *scanner) Error(message string) error {
 	return fmt.Errorf("%d:%d: syntax error: %s", s.currLine, s.currCol, message)
-}
-
-func (s *scanner) Prev() error {
-	return s.buf.UnreadRune()
 }
 
 func Tokenize(reader io.Reader) ([]Token, error) {
@@ -104,7 +112,7 @@ func Tokenize(reader io.Reader) ([]Token, error) {
 			var builder strings.Builder
 			builder.WriteRune(next)
 			for {
-				next, err = scanner.Next()
+				next, err = scanner.Peek()
 				if err == io.EOF {
 					break
 				}
@@ -114,10 +122,10 @@ func Tokenize(reader io.Reader) ([]Token, error) {
 
 				if isIdentifierChar(next) {
 					builder.WriteRune(next)
-				} else {
-					if err := scanner.Prev(); err != nil {
+					if _, err := scanner.Next(); err != nil {
 						return nil, err
 					}
+				} else {
 					break
 				}
 			}

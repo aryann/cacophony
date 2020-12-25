@@ -11,6 +11,8 @@ func TestTokenize(t *testing.T) {
 		input string
 		want  []Token
 	}{
+		{input: "",
+			want: []Token{}},
 		{input: "(",
 			want: []Token{{Type: LeftParen}}},
 		{input: ")",
@@ -60,6 +62,35 @@ func TestTokenize(t *testing.T) {
 			if !reflect.DeepEqual(tokens, testCase.want) {
 				t.Fatalf("want tokens %v, got %v", testCase.want, tokens)
 			}
+		})
+	}
+}
+
+func TestTokenizeErrors(t *testing.T) {
+	testCases := []struct {
+		input   string
+		wantErr string
+	}{
+		{input: `"`, wantErr: "1:1: syntax error: unexpected end of file"},
+		{input: `(define
+"`, wantErr: "2:2: syntax error: unexpected end of file"},
+		{input: `(")`, wantErr: "1:3: syntax error: unexpected end of file"},
+		{input: "A", wantErr: "1:1: syntax error: unexpected character"},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.input, func(t *testing.T) {
+			tokens, err := Tokenize(strings.NewReader(testCase.input))
+			if err == nil {
+				t.Fatalf("want error '%s', got none", testCase.wantErr)
+			}
+			if err.Error() != testCase.wantErr {
+				t.Fatalf("want error '%s', got '%s'", testCase.wantErr, err.Error())
+			}
+			if tokens != nil {
+				t.Fatalf("want nil tokens, got %v", tokens)
+			}
+
 		})
 	}
 }
