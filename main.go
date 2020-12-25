@@ -1,6 +1,7 @@
 package main
 
 import (
+	"explang/parser"
 	"explang/tokenizer"
 	"fmt"
 	"log"
@@ -21,4 +22,9 @@ func main() {
 		log.Fatalf("tokenization failed: %v", err)
 	}
 	fmt.Printf("tokens: %+v\n", tokens)
+	res, err := parser.Parse(tokens)
+	if err != nil {
+		log.Fatalf("parsing failed: %v", err)
+	}
+	fmt.Printf("nodes: %+v", res)
 }
