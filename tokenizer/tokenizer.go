@@ -1,12 +1,12 @@
 package tokenizer
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"strings"
 	"unicode"
-	"unicode/utf8"
 )
 
 type Type int
@@ -36,54 +36,109 @@ func isIdentifierChar(r rune) bool {
 	return isIdentifierStart(r) || '0' <= r && r <= '9'
 }
 
+type scanner struct {
+	buf      *bytes.Buffer
+	currLine int
+	currCol  int
+}
+
+func newScanner(buf []byte) *scanner {
+	return &scanner{buf: bytes.NewBuffer(buf), currLine: 1, currCol: 0}
+}
+
+func (s *scanner) Next() (rune, error) {
+	next, _, err := s.buf.ReadRune()
+	if err != nil {
+		return rune(0), err
+	}
+
+	if next == '\n' {
+		s.currLine++
+		s.currCol = 0
+	}
+	return next, nil
+}
+
+func (t *scanner) ExpectNext() (rune, error) {
+	next, err := t.Next()
+	if err == io.EOF {
+		return rune(0), t.Error("unexpected end of file")
+	}
+	return next, err
+}
+
+func (s *scanner) Error(message string) error {
+	return fmt.Errorf("%d:%d: syntax error: %s", s.currLine, s.currCol, message)
+}
+
+func (s *scanner) Prev() error {
+	return s.buf.UnreadRune()
+}
+
 func Tokenize(reader io.Reader) ([]Token, error) {
 	buf, err := ioutil.ReadAll(reader)
 	if err != nil {
 		return nil, err
 	}
 
+	scanner := newScanner(buf)
 	tokens := make([]Token, 0)
-	i := 0
 
-	for i < len(buf) {
-		rune, width := utf8.DecodeRune(buf[i:])
+	for {
+		next, err := scanner.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
 
-		if unicode.IsSpace(rune) {
-			i += width
-		} else if rune == '(' {
+		if unicode.IsSpace(next) {
+			// Nothing to do!
+		} else if next == '(' {
 			tokens = append(tokens, Token{Type: LeftParen})
-			i += width
-		} else if rune == ')' {
+		} else if next == ')' {
 			tokens = append(tokens, Token{Type: RightParen})
-			i += width
 
-		} else if isIdentifierStart(rune) {
-			start := i
-			limit := i
-			for limit <= len(buf) {
-				rune, width = utf8.DecodeRune(buf[limit:])
-				if isIdentifierChar(rune) {
-					limit += width
+		} else if isIdentifierStart(next) {
+			var builder strings.Builder
+			builder.WriteRune(next)
+			for {
+				next, err = scanner.Next()
+				if err == io.EOF {
+					break
+				}
+				if err != nil {
+					return nil, err
+				}
+
+				if isIdentifierChar(next) {
+					builder.WriteRune(next)
 				} else {
+					if err := scanner.Prev(); err != nil {
+						return nil, err
+					}
 					break
 				}
 			}
-			tokens = append(tokens, Token{Type: Identifier, Value: string(buf[start:limit])})
-			i = limit
 
-		} else if rune == '"' {
+			tokens = append(tokens, Token{Type: Identifier, Value: builder.String()})
+
+		} else if next == '"' {
 			var builder strings.Builder
-			limit := i + 1
-			for limit <= len(buf) {
-				rune, width = utf8.DecodeRune(buf[limit:])
+			for {
+				next, err = scanner.ExpectNext()
+				if err != nil {
+					return nil, err
+				}
 
-				if rune == '\\' {
-					if limit+1 >= len(buf) {
-						return nil, fmt.Errorf("illegal")
+				if next == '\\' {
+					next, err = scanner.ExpectNext()
+					if err != nil {
+						return nil, err
 					}
-					limit += width
-					rune, width = utf8.DecodeRune(buf[limit:])
-					switch rune {
+
+					switch next {
 					case '"':
 						builder.WriteRune('"')
 					case 'n':
@@ -92,22 +147,19 @@ func Tokenize(reader io.Reader) ([]Token, error) {
 						builder.WriteRune('\\')
 					default:
 						builder.WriteRune('\\')
-						builder.WriteRune(rune)
+						builder.WriteRune(next)
 					}
 
-				} else if rune == '"' {
+				} else if next == '"' {
 					break
 				} else {
-					builder.WriteRune(rune)
+					builder.WriteRune(next)
 				}
-
-				limit += width
 			}
 			tokens = append(tokens, Token{Type: String, Value: builder.String()})
-			i = limit + 1
 
 		} else {
-			return nil, fmt.Errorf("illegal character at offset %d", i)
+			return nil, scanner.Error("unexpected character")
 		}
 	}
 
