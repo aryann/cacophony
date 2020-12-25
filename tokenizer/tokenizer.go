@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 )
@@ -15,27 +16,16 @@ const (
 	RightParen
 	Number
 	Identifier
+	String
 )
 
 func (t Type) String() string {
-	return []string{"LeftParen", "RightParen", "Number", "Identifier"}[t]
+	return []string{"LeftParen", "RightParen", "Number", "Identifier", "String"}[t]
 }
 
 type Token struct {
 	Type  Type
 	Value string
-}
-
-func (t Token) String() string {
-	switch t.Type {
-	case LeftParen:
-		return "("
-	case RightParen:
-		return ")"
-	case Number, Identifier:
-		return t.Value
-	}
-	return ""
 }
 
 func isIdentifierStart(r rune) bool {
@@ -80,6 +70,41 @@ func Tokenize(reader io.Reader) ([]Token, error) {
 			}
 			tokens = append(tokens, Token{Type: Identifier, Value: string(buf[start:limit])})
 			i = limit
+
+		} else if rune == '"' {
+			var builder strings.Builder
+			limit := i + 1
+			for limit <= len(buf) {
+				rune, width = utf8.DecodeRune(buf[limit:])
+
+				if rune == '\\' {
+					if limit+1 >= len(buf) {
+						return nil, fmt.Errorf("illegal")
+					}
+					limit += width
+					rune, width = utf8.DecodeRune(buf[limit:])
+					switch rune {
+					case '"':
+						builder.WriteRune('"')
+					case 'n':
+						builder.WriteRune('\n')
+					case '\\':
+						builder.WriteRune('\\')
+					default:
+						builder.WriteRune('\\')
+						builder.WriteRune(rune)
+					}
+
+				} else if rune == '"' {
+					break
+				} else {
+					builder.WriteRune(rune)
+				}
+
+				limit += width
+			}
+			tokens = append(tokens, Token{Type: String, Value: builder.String()})
+			i = limit + 1
 
 		} else {
 			return nil, fmt.Errorf("illegal character at offset %d", i)

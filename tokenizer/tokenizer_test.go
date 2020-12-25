@@ -29,6 +29,26 @@ func TestTokenize(t *testing.T) {
 		{input: "(f)(g)",
 			want: []Token{{Type: LeftParen}, {Type: Identifier, Value: "f"}, {Type: RightParen},
 				{Type: LeftParen}, {Type: Identifier, Value: "g"}, {Type: RightParen}}},
+		{input: `("hello")`,
+			want: []Token{{Type: LeftParen}, {Type: String, Value: "hello"}, {Type: RightParen}}},
+		{input: `"hello"`,
+			want: []Token{{Type: String, Value: "hello"}}},
+		{input: `"\"hello\""`,
+			want: []Token{{Type: String, Value: `"hello"`}}},
+		{input: `"\n"`,
+			want: []Token{{Type: String, Value: "\n"}}},
+		{input: `"\x"`,
+			want: []Token{{Type: String, Value: `\x`}}},
+		{input: `""`,
+			want: []Token{{Type: String, Value: ""}}},
+		{input: `"\""`,
+			want: []Token{{Type: String, Value: `"`}}},
+		{input: `(define (f x y z) ("hello"))`,
+			want: []Token{{Type: LeftParen}, {Type: Identifier, Value: "define"},
+				{Type: LeftParen}, {Type: Identifier, Value: "f"}, {Type: Identifier, Value: "x"},
+				{Type: Identifier, Value: "y"}, {Type: Identifier, Value: "z"}, {Type: RightParen},
+				{Type: LeftParen}, {Type: String, Value: "hello"}, {Type: RightParen},
+				{Type: RightParen}}},
 	}
 
 	for _, testCase := range testCases {
@@ -38,7 +58,7 @@ func TestTokenize(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 			if !reflect.DeepEqual(tokens, testCase.want) {
-				t.Fatalf("want tokens %+v, got %+v", testCase.want, tokens)
+				t.Fatalf("want tokens %v, got %v", testCase.want, tokens)
 			}
 		})
 	}
