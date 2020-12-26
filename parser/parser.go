@@ -58,7 +58,7 @@ type String struct {
 
 func (s String) Accept(visitor Visitor) (Node, error) { return visitor.VisitString(s) }
 func (String) IsReducible() bool                      { return false }
-func (s String) String() string                       { return fmt.Sprintf(`"%s"`, s.Value) }
+func (s String) String() string                       { return strconv.Quote(s.Value) }
 
 type Boolean struct {
 	Value bool
@@ -66,7 +66,7 @@ type Boolean struct {
 
 func (b Boolean) Accept(visitor Visitor) (Node, error) { return visitor.VisitBoolean(b) }
 func (Boolean) IsReducible() bool                      { return false }
-func (b Boolean) String() string                       { return strconv.FormatBool(b.Value) }
+func (b Boolean) String() string                       { return ":" + strconv.FormatBool(b.Value) }
 
 type parser struct {
 	tokens []tokenizer.Token
