@@ -1,0 +1,7 @@
+(:define my-true-bool :true)
+(:define my-false-bool :false)
+(:define my-string "Hello, world!")
+
+my-string
+my-false-bool
+my-true-bool
