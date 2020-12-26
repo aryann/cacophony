@@ -186,7 +186,7 @@ func (p *parser) ParseIf() (Node, error) {
 	if p.Done() || p.Next().Type != tokenizer.RightParen {
 		return nil, errors.New("expected right paren")
 	}
-	return &If{
+	return If{
 		Cond:        cond,
 		TrueBranch:  trueBranch,
 		FalseBranch: falseBranch,
