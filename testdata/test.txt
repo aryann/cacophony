@@ -1,5 +1,10 @@
-(define x "hello")
+(:define x "Hello, world again!")
+(:define my-true :true)
+(:define my-false :false)
 
-"bye"
+
+"Hello, world!"
 
 x
+my-true
+my-false

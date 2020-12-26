@@ -1,15 +1,17 @@
 package parser
 
 import (
-	"errors"
 	"cacophony/tokenizer"
+	"errors"
 	"fmt"
+	"strconv"
 )
 
 type Visitor interface {
 	VisitFile(node File) (Node, error)
 	VisitDefinition(node Definition) (Node, error)
 	VisitString(node String) (Node, error)
+	VisitBoolean(node Boolean) (Node, error)
 	VisitRef(node Ref) (Node, error)
 }
 
@@ -54,6 +56,18 @@ func (s String) String() string {
 	return fmt.Sprintf(`"%s"`, s.Value)
 }
 
+type Boolean struct {
+	Value bool
+}
+
+func (b Boolean) Accept(visitor Visitor) (Node, error) {
+	return visitor.VisitBoolean(b)
+}
+
+func (b Boolean) String() string {
+	return strconv.FormatBool(b.Value)
+}
+
 type parser struct {
 	tokens []tokenizer.Token
 }
@@ -94,17 +108,28 @@ func (p *parser) ParseExpression() (Node, error) {
 			return nil, errors.New("expected definition or function call")
 		}
 		next = p.Next()
-		if next.Type != tokenizer.Identifier {
-			return nil, errors.New("expected 'define' or function name")
-		}
-		if next.Value == "define" {
-			node, err := p.ParseDefinition()
-			if err != nil {
-				return nil, errors.New("could not parse definition")
+
+		switch next.Type {
+		case tokenizer.BuiltIn:
+			switch next.Value {
+			case "define":
+				node, err := p.ParseDefinition()
+				if err != nil {
+					return nil, errors.New("could not parse definition")
+				}
+				return node, nil
+
+			case "true", "false":
+				return nil, fmt.Errorf("'%s' cannot be called", next.Value)
+			default:
+				return nil, fmt.Errorf("unknown keyword '%s'", next.Value)
 			}
-			return node, nil
-		} else {
-			return nil, errors.New("unsupported function call")
+
+		case tokenizer.Identifier:
+			return nil, errors.New("function call are not yet supported")
+		default:
+			return nil, errors.New("expected keyword or function name")
+
 		}
 
 	case tokenizer.String:
@@ -112,6 +137,16 @@ func (p *parser) ParseExpression() (Node, error) {
 
 	case tokenizer.Identifier:
 		return Ref{Name: next.Value}, nil
+
+	case tokenizer.BuiltIn:
+		switch next.Value {
+		case "true":
+			return Boolean{Value: true}, nil
+		case "false":
+			return Boolean{Value: false}, nil
+		default:
+			return nil, errors.New("unexpected built-in reference")
+		}
 
 	default:
 		return nil, errors.New("unsupported expression")

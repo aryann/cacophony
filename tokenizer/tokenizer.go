@@ -16,16 +16,21 @@ const (
 	RightParen
 	Number
 	Identifier
+	BuiltIn
 	String
 )
 
 func (t Type) String() string {
-	return []string{"LeftParen", "RightParen", "Number", "Identifier", "String"}[t]
+	return []string{"LeftParen", "RightParen", "Number", "Identifier", "BuiltIn", "String"}[t]
 }
 
 type Token struct {
 	Type  Type
 	Value string
+}
+
+func isBuiltInStart(r rune) bool {
+	return r == ':'
 }
 
 func isIdentifierStart(r rune) bool {
@@ -108,9 +113,17 @@ func Tokenize(reader io.Reader) ([]Token, error) {
 		} else if next == ')' {
 			tokens = append(tokens, Token{Type: RightParen})
 
-		} else if isIdentifierStart(next) {
+		} else if isIdentifierStart(next) || isBuiltInStart(next) {
 			var builder strings.Builder
-			builder.WriteRune(next)
+
+			var t Type
+			if isIdentifierStart(next) {
+				t = Identifier
+				builder.WriteRune(next)
+			} else {
+				t = BuiltIn
+			}
+
 			for {
 				next, err = scanner.Peek()
 				if err == io.EOF {
@@ -130,7 +143,7 @@ func Tokenize(reader io.Reader) ([]Token, error) {
 				}
 			}
 
-			tokens = append(tokens, Token{Type: Identifier, Value: builder.String()})
+			tokens = append(tokens, Token{Type: t, Value: builder.String()})
 
 		} else if next == '"' {
 			var builder strings.Builder

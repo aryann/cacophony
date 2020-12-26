@@ -40,6 +40,10 @@ func (e *evaluator) VisitString(node parser.String) (parser.Node, error) {
 	return node, nil
 }
 
+func (e *evaluator) VisitBoolean(node parser.Boolean) (parser.Node, error) {
+	return node, nil
+}
+
 func (e *evaluator) VisitRef(node parser.Ref) (parser.Node, error) {
 	val, ok := e.Get(node.Name)
 	if !ok {
