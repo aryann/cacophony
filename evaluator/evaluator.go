@@ -6,12 +6,12 @@ import (
 )
 
 type evaluator struct {
-	vars map[string]parser.Node
+	*environment
 }
 
 func newEvaluator() *evaluator {
 	return &evaluator{
-		vars: make(map[string]parser.Node),
+		environment: newEnvironment(),
 	}
 }
 
@@ -32,7 +32,7 @@ func (e *evaluator) VisitDefinition(node parser.Definition) (parser.Node, error)
 	if err != nil {
 		return nil, fmt.Errorf("could not evaluate expression: %w", err)
 	}
-	e.vars[node.Name] = value
+	e.Set(node.Name, value)
 	return node, nil
 }
 
@@ -41,7 +41,7 @@ func (e *evaluator) VisitString(node parser.String) (parser.Node, error) {
 }
 
 func (e *evaluator) VisitRef(node parser.Ref) (parser.Node, error) {
-	val, ok := e.vars[node.Name]
+	val, ok := e.Get(node.Name)
 	if !ok {
 		return nil, fmt.Errorf("no such variable: %s", node.Name)
 	}
