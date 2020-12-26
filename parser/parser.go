@@ -3,36 +3,62 @@ package parser
 import (
 	"errors"
 	"explang/tokenizer"
+	"fmt"
 )
 
+type Visitor interface {
+	VisitFile(node File) (Node, error)
+	VisitDefinition(node Definition) (Node, error)
+	VisitString(node String) (Node, error)
+	VisitRef(node Ref) (Node, error)
+}
+
 type Node interface {
+	Accept(visitor Visitor) (Node, error)
 }
 
-type file struct {
-	nodes []Node
+type File struct {
+	Nodes []Node
 }
 
-type definition struct {
-	name       string
-	expression Node
+func (f File) Accept(visitor Visitor) (Node, error) {
+	return visitor.VisitFile(f)
 }
 
-type call struct {
+type Definition struct {
+	Name       string
+	Expression Node
 }
 
-type ref struct {
-	name string
+func (d Definition) Accept(visitor Visitor) (Node, error) {
+	return visitor.VisitDefinition(d)
 }
 
-type str struct {
-	value string
+type Ref struct {
+	Name string
+}
+
+func (r Ref) Accept(visitor Visitor) (Node, error) {
+	return visitor.VisitRef(r)
+}
+
+type String struct {
+	Value string
+}
+
+func (s String) Accept(visitor Visitor) (Node, error) {
+	return visitor.VisitString(s)
+}
+
+func (s String) String() string {
+	return fmt.Sprintf(`"%s"`, s.Value)
 }
 
 type parser struct {
 	tokens []tokenizer.Token
 }
 
-func (p *parser) Done() bool {
+func (p parser) Done() bool {
 	return len(p.tokens) == 0
 }
 
@@ -43,7 +69,7 @@ func (p *parser) Next() tokenizer.Token {
 }
 
 func (p *parser) ParseFile() (Node, error) {
-	res := &file{nodes: make([]Node, 0)}
+	res := &File{Nodes: make([]Node, 0)}
 	for {
 		if p.Done() {
 			break
@@ -52,7 +78,7 @@ func (p *parser) ParseFile() (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		res.nodes = append(res.nodes, node)
+		res.Nodes = append(res.Nodes, node)
 	}
 	return res, nil
 }
@@ -82,10 +108,10 @@ func (p *parser) ParseExpression() (Node, error) {
 		}
 
 	case tokenizer.String:
-		return str{value: next.Value}, nil
+		return String{Value: next.Value}, nil
 
 	case tokenizer.Identifier:
-		return ref{name: next.Value}, nil
+		return Ref{Name: next.Value}, nil
 
 	default:
 		return nil, errors.New("unsupported expression")
@@ -110,7 +136,7 @@ func (p *parser) ParseDefinition() (Node, error) {
 		return nil, errors.New("expected right paren")
 	}
 
-	return definition{name: name, expression: node}, nil
+	return Definition{Name: name, Expression: node}, nil
 }
 
 func Parse(tokens []tokenizer.Token) (Node, error) {
