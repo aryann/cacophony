@@ -2,9 +2,21 @@
 (:define my-true :true)
 (:define my-false :false)
 
-
 "Hello, world!"
 
 x
 my-true
 my-false
+
+(:define should-display "I should be displayed")
+(:define should-not-display "I should not be displayed")
+
+(:if :true should-display should-not-display)
+(:if :false should-not-display should-display)
+
+(:if :true
+    (:if :true should-display
+               should-not-display)
+    (:if :true should-not-display
+               should-not-display)
+)

@@ -2,6 +2,7 @@ package evaluator
 
 import (
 	"cacophony/parser"
+	"errors"
 	"fmt"
 )
 
@@ -34,6 +35,22 @@ func (e *evaluator) VisitDefinition(node parser.Definition) (parser.Node, error)
 	}
 	e.Set(node.Name, value)
 	return node, nil
+}
+
+func (e *evaluator) VisitIf(node parser.If) (parser.Node, error) {
+	cond, err := node.Cond.Accept(e)
+	if err != nil {
+		return nil, err
+	}
+	condAsBool, ok := cond.(parser.Boolean)
+	if !ok {
+		return nil, errors.New("expected boolean expression")
+	}
+	if condAsBool.Value {
+		return node.TrueBranch.Accept(e)
+	} else {
+		return node.FalseBranch.Accept(e)
+	}
 }
 
 func (e *evaluator) VisitString(node parser.String) (parser.Node, error) {

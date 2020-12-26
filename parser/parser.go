@@ -10,6 +10,7 @@ import (
 type Visitor interface {
 	VisitFile(node File) (Node, error)
 	VisitDefinition(node Definition) (Node, error)
+	VisitIf(node If) (Node, error)
 	VisitString(node String) (Node, error)
 	VisitBoolean(node Boolean) (Node, error)
 	VisitRef(node Ref) (Node, error)
@@ -34,6 +35,16 @@ type Definition struct {
 
 func (d Definition) Accept(visitor Visitor) (Node, error) {
 	return visitor.VisitDefinition(d)
+}
+
+type If struct {
+	Cond        Node
+	TrueBranch  Node
+	FalseBranch Node
+}
+
+func (i If) Accept(visitor Visitor) (Node, error) {
+	return visitor.VisitIf(i)
 }
 
 type Ref struct {
@@ -119,6 +130,13 @@ func (p *parser) ParseExpression() (Node, error) {
 				}
 				return node, nil
 
+			case "if":
+				node, err := p.ParseIf()
+				if err != nil {
+					return nil, errors.New("could not parse if")
+				}
+				return node, nil
+
 			case "true", "false":
 				return nil, fmt.Errorf("'%s' cannot be called", next.Value)
 			default:
@@ -129,7 +147,6 @@ func (p *parser) ParseExpression() (Node, error) {
 			return nil, errors.New("function call are not yet supported")
 		default:
 			return nil, errors.New("expected keyword or function name")
-
 		}
 
 	case tokenizer.String:
@@ -151,7 +168,29 @@ func (p *parser) ParseExpression() (Node, error) {
 	default:
 		return nil, errors.New("unsupported expression")
 	}
+}
 
+func (p *parser) ParseIf() (Node, error) {
+	cond, err := p.ParseExpression()
+	if err != nil {
+		return nil, err
+	}
+	trueBranch, err := p.ParseExpression()
+	if err != nil {
+		return nil, err
+	}
+	falseBranch, err := p.ParseExpression()
+	if err != nil {
+		return nil, err
+	}
+	if p.Done() || p.Next().Type != tokenizer.RightParen {
+		return nil, errors.New("expected right paren")
+	}
+	return &If{
+		Cond:        cond,
+		TrueBranch:  trueBranch,
+		FalseBranch: falseBranch,
+	}, nil
 }
 
 func (p *parser) ParseDefinition() (Node, error) {
@@ -170,7 +209,6 @@ func (p *parser) ParseDefinition() (Node, error) {
 	if p.Done() || p.Next().Type != tokenizer.RightParen {
 		return nil, errors.New("expected right paren")
 	}
-
 	return Definition{Name: name, Expression: node}, nil
 }
 
