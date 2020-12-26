@@ -2,8 +2,6 @@ package main
 
 import (
 	"cacophony/evaluator"
-	"cacophony/parser"
-	"cacophony/tokenizer"
 	"log"
 	"os"
 )
@@ -17,20 +15,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("could not read from file: %v", err)
 	}
-	tokens, err := tokenizer.Tokenize(reader)
+	node, err := evaluator.Evaluate(reader, os.Stdout)
 	if err != nil {
-		log.Fatalf("tokenization failed: %v", err)
-	}
-	log.Printf("tokens: %+v", tokens)
-	res, err := parser.Parse(tokens)
-	if err != nil {
-		log.Fatalf("parsing failed: %v", err)
-	}
-	log.Printf("nodes: %+v", res)
-
-	node, err := evaluator.Evaluate(res)
-	if err != nil {
-		log.Fatalf("evaluation failed: %v", err)
+		log.Fatal(err)
 	}
 	log.Printf("evaluated nodes: %+v", node)
 }

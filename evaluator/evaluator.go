@@ -2,17 +2,22 @@ package evaluator
 
 import (
 	"cacophony/parser"
+	"cacophony/tokenizer"
 	"errors"
 	"fmt"
+	"io"
+	"log"
 )
 
 type evaluator struct {
 	*environment
+	writer io.Writer
 }
 
-func newEvaluator() *evaluator {
+func newEvaluator(writer io.Writer) *evaluator {
 	return &evaluator{
 		environment: newEnvironment(),
+		writer:      writer,
 	}
 }
 
@@ -22,6 +27,9 @@ func (e *evaluator) VisitFile(node parser.File) (parser.Node, error) {
 		newNode, err := node.Accept(e)
 		if err != nil {
 			return nil, err
+		}
+		if !newNode.IsReducible() {
+			fmt.Fprintf(e.writer, "%s\n", newNode)
 		}
 		newFile.Nodes = append(newFile.Nodes, newNode)
 	}
@@ -69,7 +77,26 @@ func (e *evaluator) VisitRef(node parser.Ref) (parser.Node, error) {
 	return val, nil
 }
 
-func Evaluate(node parser.Node) (parser.Node, error) {
-	evaluator := newEvaluator()
+func evaluate(node parser.Node, writer io.Writer) (parser.Node, error) {
+	evaluator := newEvaluator(writer)
 	return node.Accept(evaluator)
+}
+
+func Evaluate(reader io.Reader, writer io.Writer) (parser.Node, error) {
+	tokens, err := tokenizer.Tokenize(reader)
+	if err != nil {
+		return nil, fmt.Errorf("tokenization failed: %w", err)
+	}
+	log.Printf("tokens: %+v", tokens)
+	res, err := parser.Parse(tokens)
+	if err != nil {
+		return nil, fmt.Errorf("parsing failed: %w", err)
+	}
+	log.Printf("nodes: %+v", res)
+
+	node, err := evaluate(res, writer)
+	if err != nil {
+		return nil, fmt.Errorf("evaluation failed: %w", err)
+	}
+	return node, nil
 }

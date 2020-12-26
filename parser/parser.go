@@ -18,24 +18,23 @@ type Visitor interface {
 
 type Node interface {
 	Accept(visitor Visitor) (Node, error)
+	IsReducible() bool
 }
 
 type File struct {
 	Nodes []Node
 }
 
-func (f File) Accept(visitor Visitor) (Node, error) {
-	return visitor.VisitFile(f)
-}
+func (f File) Accept(visitor Visitor) (Node, error) { return visitor.VisitFile(f) }
+func (File) IsReducible() bool                      { return true }
 
 type Definition struct {
 	Name       string
 	Expression Node
 }
 
-func (d Definition) Accept(visitor Visitor) (Node, error) {
-	return visitor.VisitDefinition(d)
-}
+func (d Definition) Accept(visitor Visitor) (Node, error) { return visitor.VisitDefinition(d) }
+func (Definition) IsReducible() bool                      { return true }
 
 type If struct {
 	Cond        Node
@@ -43,41 +42,31 @@ type If struct {
 	FalseBranch Node
 }
 
-func (i If) Accept(visitor Visitor) (Node, error) {
-	return visitor.VisitIf(i)
-}
+func (i If) Accept(visitor Visitor) (Node, error) { return visitor.VisitIf(i) }
+func (If) IsReducible() bool                      { return true }
 
 type Ref struct {
 	Name string
 }
 
-func (r Ref) Accept(visitor Visitor) (Node, error) {
-	return visitor.VisitRef(r)
-}
+func (r Ref) Accept(visitor Visitor) (Node, error) { return visitor.VisitRef(r) }
+func (Ref) IsReducible() bool                      { return true }
 
 type String struct {
 	Value string
 }
 
-func (s String) Accept(visitor Visitor) (Node, error) {
-	return visitor.VisitString(s)
-}
-
-func (s String) String() string {
-	return fmt.Sprintf(`"%s"`, s.Value)
-}
+func (s String) Accept(visitor Visitor) (Node, error) { return visitor.VisitString(s) }
+func (String) IsReducible() bool                      { return false }
+func (s String) String() string                       { return fmt.Sprintf(`"%s"`, s.Value) }
 
 type Boolean struct {
 	Value bool
 }
 
-func (b Boolean) Accept(visitor Visitor) (Node, error) {
-	return visitor.VisitBoolean(b)
-}
-
-func (b Boolean) String() string {
-	return strconv.FormatBool(b.Value)
-}
+func (b Boolean) Accept(visitor Visitor) (Node, error) { return visitor.VisitBoolean(b) }
+func (Boolean) IsReducible() bool                      { return false }
+func (b Boolean) String() string                       { return strconv.FormatBool(b.Value) }
 
 type parser struct {
 	tokens []tokenizer.Token
