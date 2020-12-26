@@ -12,14 +12,14 @@ import (
 func validateFileName(name string, t *testing.T) {
 	t.Helper()
 	if !strings.HasSuffix(name, ".in") &&
-		!strings.HasSuffix(name, ".out") {
+		!strings.HasSuffix(name, ".want") {
 		t.Fatalf("found unexpected file: %s", name)
 	}
 }
 
 type testCase struct {
-	in  string
-	out string
+	in   string
+	want string
 }
 
 func TestPrograms(t *testing.T) {
@@ -33,8 +33,8 @@ func TestPrograms(t *testing.T) {
 		validateFileName(file.Name(), t)
 		if strings.HasSuffix(file.Name(), ".in") {
 			testCases = append(testCases, testCase{
-				in:  file.Name(),
-				out: strings.TrimSuffix(file.Name(), ".in") + ".out",
+				in:   file.Name(),
+				want: strings.TrimSuffix(file.Name(), ".in") + ".want",
 			})
 		}
 	}
@@ -46,7 +46,7 @@ func TestPrograms(t *testing.T) {
 				t.Fatalf("could not read input file: %v", err)
 			}
 
-			bytes, err := ioutil.ReadFile(filepath.Join("testdata", testCase.out))
+			bytes, err := ioutil.ReadFile(filepath.Join("testdata", testCase.want))
 			if err != nil {
 				t.Fatalf("could not read output file: %v", err)
 			}
