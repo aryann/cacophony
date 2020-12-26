@@ -1,9 +1,9 @@
 package main
 
 import (
-	"explang/evaluator"
-	"explang/parser"
-	"explang/tokenizer"
+	"cacophony/evaluator"
+	"cacophony/parser"
+	"cacophony/tokenizer"
 	"log"
 	"os"
 )

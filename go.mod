@@ -1,3 +1,3 @@
-module explang
+module cacophony
 
 go 1.15

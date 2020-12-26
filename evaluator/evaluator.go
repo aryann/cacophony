@@ -1,7 +1,7 @@
 package evaluator
 
 import (
-	"explang/parser"
+	"cacophony/parser"
 	"fmt"
 )
 

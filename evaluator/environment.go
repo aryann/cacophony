@@ -1,6 +1,6 @@
 package evaluator
 
-import "explang/parser"
+import "cacophony/parser"
 
 type environment struct {
 	scopes []scope
