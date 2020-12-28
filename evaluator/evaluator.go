@@ -85,18 +85,18 @@ func evaluate(node parser.Node, writer io.Writer) (parser.Node, error) {
 func Evaluate(reader io.Reader, writer io.Writer) (parser.Node, error) {
 	tokens, err := tokenizer.Tokenize(reader)
 	if err != nil {
-		return nil, fmt.Errorf("tokenization failed: %w", err)
+		return nil, err
 	}
 	log.Printf("tokens: %+v", tokens)
 	res, err := parser.Parse(tokens)
 	if err != nil {
-		return nil, fmt.Errorf("parsing failed: %w", err)
+		return nil, err
 	}
 	log.Printf("nodes: %+v", res)
 
 	node, err := evaluate(res, writer)
 	if err != nil {
-		return nil, fmt.Errorf("evaluation failed: %w", err)
+		return nil, err
 	}
 	return node, nil
 }

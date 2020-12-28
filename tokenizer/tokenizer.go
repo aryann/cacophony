@@ -27,6 +27,13 @@ func (t Type) String() string {
 type Token struct {
 	Type  Type
 	Value string
+	line  int
+	col   int
+}
+
+func (t Token) Error(message string, a ...interface{}) error {
+	return fmt.Errorf("invalid syntax on line %d, column %d: %s",
+		t.line, t.col, fmt.Sprintf(message, a...))
 }
 
 func isBuiltInStart(r rune) bool {
@@ -42,13 +49,16 @@ func isIdentifierChar(r rune) bool {
 }
 
 type scanner struct {
-	buf      *bytes.Buffer
+	buf *bytes.Buffer
+
+	prevLine int
+	prevCol  int
 	currLine int
 	currCol  int
 }
 
 func newScanner(buf []byte) *scanner {
-	return &scanner{buf: bytes.NewBuffer(buf), currLine: 1, currCol: 0}
+	return &scanner{buf: bytes.NewBuffer(buf), prevLine: 1, prevCol: 1}
 }
 
 func (s *scanner) Peek() (rune, error) {
@@ -68,11 +78,14 @@ func (s *scanner) Next() (rune, error) {
 		return next, err
 	}
 
+	s.prevCol = s.currCol
 	if next == '\n' {
+		s.prevLine = s.currLine
 		s.currLine++
-		s.currCol = 0
+		s.currCol = 1
+	} else {
+		s.currCol++
 	}
-	s.currCol++
 	return next, nil
 }
 
@@ -84,8 +97,18 @@ func (t *scanner) ExpectNext() (rune, error) {
 	return next, err
 }
 
-func (s *scanner) Error(message string) error {
-	return fmt.Errorf("%d:%d: syntax error: %s", s.currLine, s.currCol, message)
+func (s *scanner) Error(message string, a ...interface{}) error {
+	return fmt.Errorf("invalid syntax on line %d, column %d: %s",
+		s.prevLine, s.prevCol, fmt.Sprintf(message, a...))
+}
+
+func (s *scanner) NewToken(t Type, value string) Token {
+	return Token{
+		Type:  t,
+		Value: value,
+		line:  s.prevLine,
+		col:   s.prevCol,
+	}
 }
 
 func Tokenize(reader io.Reader) ([]Token, error) {
@@ -109,9 +132,9 @@ func Tokenize(reader io.Reader) ([]Token, error) {
 		if unicode.IsSpace(next) {
 			// Nothing to do!
 		} else if next == '(' {
-			tokens = append(tokens, Token{Type: LeftParen})
+			tokens = append(tokens, scanner.NewToken(LeftParen, ""))
 		} else if next == ')' {
-			tokens = append(tokens, Token{Type: RightParen})
+			tokens = append(tokens, scanner.NewToken(RightParen, ""))
 
 		} else if isIdentifierStart(next) || isBuiltInStart(next) {
 			var builder strings.Builder
@@ -143,7 +166,7 @@ func Tokenize(reader io.Reader) ([]Token, error) {
 				}
 			}
 
-			tokens = append(tokens, Token{Type: t, Value: builder.String()})
+			tokens = append(tokens, scanner.NewToken(t, builder.String()))
 
 		} else if next == '"' {
 			var builder strings.Builder
@@ -177,10 +200,10 @@ func Tokenize(reader io.Reader) ([]Token, error) {
 					builder.WriteRune(next)
 				}
 			}
-			tokens = append(tokens, Token{Type: String, Value: builder.String()})
+			tokens = append(tokens, scanner.NewToken(String, builder.String()))
 
 		} else {
-			return nil, scanner.Error("unexpected character")
+			return nil, scanner.Error("unexpected character: %c", next)
 		}
 	}
 

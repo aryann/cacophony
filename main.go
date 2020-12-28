@@ -2,6 +2,7 @@ package main
 
 import (
 	"cacophony/evaluator"
+	"fmt"
 	"log"
 	"os"
 )
@@ -17,7 +18,8 @@ func main() {
 	}
 	node, err := evaluator.Evaluate(reader, os.Stdout)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(1)
 	}
 	log.Printf("evaluated nodes: %+v", node)
 }

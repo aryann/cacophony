@@ -135,7 +135,7 @@ func (p *parser) ParseExpression() (Node, error) {
 		case tokenizer.Identifier:
 			return nil, errors.New("function call are not yet supported")
 		default:
-			return nil, errors.New("expected keyword or function name")
+			return nil, next.Error("found %s where keyword or function name was expected", next.Type)
 		}
 
 	case tokenizer.String:
