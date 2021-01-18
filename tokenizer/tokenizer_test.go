@@ -13,8 +13,27 @@ func TestTokenize(t *testing.T) {
 	}{
 		{input: "",
 			want: []Token{}},
+
 		{input: "(",
-			want: []Token{{Type: LeftParen, Value: "("}}},
+			want: []Token{
+				{Type: LeftParen, Value: "("},
+				{Type: Error, Value: "unterminated left paren"},
+			}},
+		{input: ")",
+			want: []Token{{Type: Error, Value: "unexpected right paren"}}},
+		{input: "()",
+			want: []Token{
+				{Type: LeftParen, Value: "("},
+				{Type: RightParen, Value: ")"}}},
+		{input: "(   )",
+			want: []Token{
+				{Type: LeftParen, Value: "("},
+				{Type: RightParen, Value: ")"}}},
+		{input: "   (   )     ",
+			want: []Token{
+				{Type: LeftParen, Value: "("},
+				{Type: RightParen, Value: ")"}}},
+
 		{input: `"`,
 			want: []Token{{Type: Error, Value: "unterminated string"}}},
 		{input: `""`,
@@ -29,6 +48,21 @@ func TestTokenize(t *testing.T) {
 			want: []Token{{Type: String, Value: `"hello world"`}}},
 		{input: `"hello \"world\""`,
 			want: []Token{{Type: String, Value: `"hello \"world\""`}}},
+
+		{input: "i",
+			want: []Token{{Type: Identifier, Value: "i"}}},
+		{input: "    i   ",
+			want: []Token{{Type: Identifier, Value: "i"}}},
+		{input: "identifier",
+			want: []Token{{Type: Identifier, Value: "identifier"}}},
+		{input: "   identifier",
+			want: []Token{{Type: Identifier, Value: "identifier"}}},
+		{input: "identifier    ",
+			want: []Token{{Type: Identifier, Value: "identifier"}}},
+		{input: "_identifier",
+			want: []Token{{Type: Identifier, Value: "_identifier"}}},
+		{input: "identifier651",
+			want: []Token{{Type: Identifier, Value: "identifier651"}}},
 		/*
 			{input: ")",
 				want: []Token{{Type: RightParen}}},

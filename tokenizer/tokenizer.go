@@ -37,11 +37,12 @@ type Token struct {
 }
 
 type tokenizer struct {
-	buf    string
-	start  int
-	pos    int
-	width  int
-	tokens []Token
+	buf        string
+	start      int
+	pos        int
+	width      int
+	parenDepth int
+	tokens     []Token
 }
 
 func (t *tokenizer) emit(tokenType Type) {
@@ -49,6 +50,10 @@ func (t *tokenizer) emit(tokenType Type) {
 		Type:  tokenType,
 		Value: t.buf[t.start:t.pos],
 	})
+	t.start = t.pos
+}
+
+func (t *tokenizer) ignore() {
 	t.start = t.pos
 }
 
@@ -60,6 +65,12 @@ func (t *tokenizer) next() rune {
 	t.pos += width
 	t.width = width
 	return result
+}
+
+func (t *tokenizer) peek() rune {
+	r := t.next()
+	t.backup()
+	return r
 }
 
 func (t *tokenizer) backup() {
@@ -78,9 +89,15 @@ func (t *tokenizer) errorf(format string, args ...interface{}) stateFn {
 type stateFn func(*tokenizer) stateFn
 
 func lexSpace(t *tokenizer) stateFn {
-	for unicode.IsSpace(t.next()) {
+	r := t.next()
+	for unicode.IsSpace(r) {
+		r = t.next()
+	}
+	if r == eof {
+		return nil
 	}
 	t.backup()
+	t.ignore()
 	return lexBody
 }
 
@@ -89,27 +106,45 @@ func lexBody(t *tokenizer) stateFn {
 	switch {
 	case r == '(':
 		t.emit(LeftParen)
-		lexSpace(t)
-		return lexFunction
+		t.parenDepth++
+		return lexBody
+	case r == ')':
+		t.parenDepth--
+		if t.parenDepth < 0 {
+			return t.errorf("unexpected right paren")
+		}
+		t.emit(RightParen)
+		return lexBody
 	case r == '"':
 		return lexString
 	case isAlphaNumeric(r):
 		t.backup()
 		return lexIdentifier
 	case r == eof:
+		if t.parenDepth != 0 {
+			return t.errorf("unterminated left paren")
+		}
 		return nil
+	case unicode.IsSpace(r):
+		t.backup()
+		return lexSpace
 	default:
 		return t.errorf("unexpected character: %v", r)
 	}
 }
 
-func lexFunction(t *tokenizer) stateFn {
-	return nil
-}
-
 func lexIdentifier(t *tokenizer) stateFn {
-	return nil
-
+	for {
+		r := t.next()
+		if !isAlphaNumeric(r) {
+			if r != eof {
+				t.backup()
+			}
+			t.emit(Identifier)
+			break
+		}
+	}
+	return lexBody
 }
 
 func lexString(t *tokenizer) stateFn {
@@ -133,7 +168,7 @@ func Tokenize2(buf string) []Token {
 		buf:    buf,
 		tokens: make([]Token, 0),
 	}
-	for state := lexSpace; state != nil; {
+	for state := lexBody; state != nil; {
 		state = state(&t)
 	}
 	return t.tokens
