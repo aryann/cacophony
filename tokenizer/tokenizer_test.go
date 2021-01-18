@@ -13,6 +13,10 @@ func TestTokenize(t *testing.T) {
 	}{
 		{input: "",
 			want: []Token{}},
+		{input: "     ",
+			want: []Token{}},
+		{input: "   \n  \n",
+			want: []Token{}},
 
 		{input: "(",
 			want: []Token{
