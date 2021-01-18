@@ -7,12 +7,17 @@ import (
 	"io/ioutil"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
+
+const eof = -1
 
 type Type int
 
 const (
-	LeftParen = iota
+	EOF = iota
+	Error
+	LeftParen
 	RightParen
 	Number
 	Identifier
@@ -21,7 +26,7 @@ const (
 )
 
 func (t Type) String() string {
-	return []string{"LeftParen", "RightParen", "Number", "Identifier", "BuiltIn", "String"}[t]
+	return []string{"EOF", "Error", "LeftParen", "RightParen", "Number", "Identifier", "BuiltIn", "String"}[t]
 }
 
 type Token struct {
@@ -29,6 +34,113 @@ type Token struct {
 	Value string
 	line  int
 	col   int
+}
+
+type tokenizer struct {
+	buf    string
+	start  int
+	pos    int
+	width  int
+	tokens []Token
+}
+
+func (t *tokenizer) emit(tokenType Type) {
+	t.tokens = append(t.tokens, Token{
+		Type:  tokenType,
+		Value: t.buf[t.start:t.pos],
+	})
+	t.start = t.pos
+}
+
+func (t *tokenizer) next() rune {
+	if t.pos >= len(t.buf) {
+		return eof
+	}
+	result, width := utf8.DecodeRuneInString(t.buf[t.pos:])
+	t.pos += width
+	t.width = width
+	return result
+}
+
+func (t *tokenizer) backup() {
+	t.pos -= t.width
+	t.width = 0
+}
+
+func (t *tokenizer) errorf(format string, args ...interface{}) stateFn {
+	t.tokens = append(t.tokens, Token{
+		Type:  Error,
+		Value: fmt.Sprintf(format, args...),
+	})
+	return nil
+}
+
+type stateFn func(*tokenizer) stateFn
+
+func lexSpace(t *tokenizer) stateFn {
+	for unicode.IsSpace(t.next()) {
+	}
+	t.backup()
+	return lexBody
+}
+
+func lexBody(t *tokenizer) stateFn {
+	r := t.next()
+	switch {
+	case r == '(':
+		t.emit(LeftParen)
+		lexSpace(t)
+		return lexFunction
+	case r == '"':
+		return lexString
+	case isAlphaNumeric(r):
+		t.backup()
+		return lexIdentifier
+	case r == eof:
+		return nil
+	default:
+		return t.errorf("unexpected character: %v", r)
+	}
+}
+
+func lexFunction(t *tokenizer) stateFn {
+	return nil
+}
+
+func lexIdentifier(t *tokenizer) stateFn {
+	return nil
+
+}
+
+func lexString(t *tokenizer) stateFn {
+	for {
+		switch r := t.next(); r {
+		case '\\':
+			if r := t.next(); r == eof || r == '\n' {
+				return t.errorf("unterminated string")
+			}
+		case eof, '\n':
+			return t.errorf("unterminated string")
+		case '"':
+			t.emit(String)
+			return lexBody
+		}
+	}
+}
+
+func Tokenize2(buf string) []Token {
+	t := tokenizer{
+		buf:    buf,
+		tokens: make([]Token, 0),
+	}
+	for state := lexSpace; state != nil; {
+		state = state(&t)
+	}
+	return t.tokens
+}
+
+func isAlphaNumeric(r rune) bool {
+	return r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r)
 }
 
 func (t Token) Error(message string, a ...interface{}) error {
