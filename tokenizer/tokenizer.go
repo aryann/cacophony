@@ -2,6 +2,7 @@ package tokenizer
 
 import (
 	"fmt"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 )
@@ -79,6 +80,7 @@ func (t *tokenizer) ignore() {
 
 func (t *tokenizer) next() rune {
 	if t.pos >= len(t.buf) {
+		t.width = 0
 		return eof
 	}
 	result, width := utf8.DecodeRuneInString(t.buf[t.pos:])
@@ -106,15 +108,29 @@ func (t *tokenizer) errorf(format string, args ...interface{}) stateFn {
 	return nil
 }
 
+func (t *tokenizer) accept(set string) bool {
+	if strings.ContainsRune(set, t.next()) {
+		return true
+	}
+	t.backup()
+	return false
+}
+
+func (t *tokenizer) acceptRun(set string) int {
+	count := 0
+	for strings.ContainsRune(set, t.next()) {
+		count++
+	}
+	t.backup()
+	return count
+}
+
 type stateFn func(*tokenizer) stateFn
 
 func lexSpace(t *tokenizer) stateFn {
 	r := t.next()
 	for unicode.IsSpace(r) {
 		r = t.next()
-	}
-	if r == eof {
-		return nil
 	}
 	t.backup()
 	t.ignore()
@@ -137,11 +153,14 @@ func lexBody(t *tokenizer) stateFn {
 		return lexBody
 	case r == '"':
 		return lexString
+	case r == '.' || r == '-' || r == '+' || '0' <= r && r <= '9':
+		t.backup()
+		return lexNumber
 	case isAlphaNumeric(r):
 		t.backup()
 		return lexIdentifier
 	case r == ':':
-		return lexBuiltIn
+		return lexKeyWord
 	case r == eof:
 		if t.parenDepth != 0 {
 			return t.errorf("unterminated left paren")
@@ -155,13 +174,38 @@ func lexBody(t *tokenizer) stateFn {
 	}
 }
 
+func lexNumber(t *tokenizer) stateFn {
+	t.accept("+-")
+	digits := "0123456789_"
+	if t.accept("0") {
+		if t.accept("xX") {
+			digits += "abcdefABCDEF"
+		} else {
+			return t.errorf("illegal number")
+		}
+		// TODO: Maybe support octal and binary numbers too?
+	}
+
+	numDigits := t.acceptRun(digits)
+	if t.accept(".") {
+		decimalDigits := t.acceptRun(digits)
+		if decimalDigits == 0 {
+			return t.errorf("illegal number")
+		}
+		numDigits += decimalDigits
+	}
+	if numDigits == 0 {
+		return t.errorf("illegal number")
+	}
+	t.emit(Number)
+	return lexBody
+}
+
 func lexIdentifier(t *tokenizer) stateFn {
 	for {
 		r := t.next()
 		if !isAlphaNumeric(r) {
-			if r != eof {
-				t.backup()
-			}
+			t.backup()
 			t.emit(Identifier)
 			break
 		}
@@ -169,13 +213,11 @@ func lexIdentifier(t *tokenizer) stateFn {
 	return lexBody
 }
 
-func lexBuiltIn(t *tokenizer) stateFn {
+func lexKeyWord(t *tokenizer) stateFn {
 	for {
 		r := t.next()
 		if !isAlphaNumeric(r) {
-			if r != eof {
-				t.backup()
-			}
+			t.backup()
 			word := t.buf[t.start:t.pos]
 			keywordType, ok := key[word]
 			if !ok {
@@ -192,9 +234,10 @@ func lexString(t *tokenizer) stateFn {
 	for {
 		switch r := t.next(); r {
 		case '\\':
-			if r := t.next(); r == eof || r == '\n' {
-				return t.errorf("unterminated string")
+			if r := t.next(); r != eof && r != '\n' {
+				break
 			}
+			fallthrough
 		case eof, '\n':
 			return t.errorf("unterminated string")
 		case '"':
