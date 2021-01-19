@@ -2,7 +2,6 @@ package tokenizer
 
 import (
 	"reflect"
-	"strings"
 	"testing"
 )
 
@@ -91,7 +90,7 @@ func TestTokenize(t *testing.T) {
 				{Type: RightParen, Value: ")"},
 			}},
 
-		{input: "( identifier (x y z) )",
+		{input: "   ( identifier (x y z) )  ",
 			want: []Token{
 				{Type: LeftParen, Value: "("},
 				{Type: Identifier, Value: "identifier"},
@@ -111,43 +110,25 @@ func TestTokenize(t *testing.T) {
 				{Type: String, Value: `"world"`},
 				{Type: RightParen, Value: ")"},
 			}},
+
+		{input: ":true",
+			want: []Token{{Type: Boolean, Value: ":true"}}},
+		{input: ":false",
+			want: []Token{{Type: Boolean, Value: ":false"}}},
+		{input: ":define",
+			want: []Token{{Type: Define, Value: ":define"}}},
+		{input: ":if",
+			want: []Token{{Type: If, Value: ":if"}}},
+		{input: ":unknown",
+			want: []Token{{Type: Error, Value: "unexpected keyword: unknown"}}},
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.input, func(t *testing.T) {
-			tokens := Tokenize2(testCase.input)
+			tokens := Tokenize(testCase.input)
 			if !reflect.DeepEqual(tokens, testCase.want) {
 				t.Fatalf("want tokens %+v, got %+v", testCase.want, tokens)
 			}
-		})
-	}
-}
-
-func TestTokenizeErrors(t *testing.T) {
-	testCases := []struct {
-		input   string
-		wantErr string
-	}{
-		{input: `"`, wantErr: "1:1: syntax error: unexpected end of file"},
-		{input: `(define
-"`, wantErr: "2:2: syntax error: unexpected end of file"},
-		{input: `(")`, wantErr: "1:3: syntax error: unexpected end of file"},
-		{input: "A", wantErr: "1:1: syntax error: unexpected character"},
-	}
-
-	for _, testCase := range testCases {
-		t.Run(testCase.input, func(t *testing.T) {
-			tokens, err := Tokenize(strings.NewReader(testCase.input))
-			if err == nil {
-				t.Fatalf("want error '%s', got none", testCase.wantErr)
-			}
-			if err.Error() != testCase.wantErr {
-				t.Fatalf("want error '%s', got '%s'", testCase.wantErr, err.Error())
-			}
-			if tokens != nil {
-				t.Fatalf("want nil tokens, got %v", tokens)
-			}
-
 		})
 	}
 }

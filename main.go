@@ -3,6 +3,7 @@ package main
 import (
 	"cacophony/evaluator"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 )
@@ -12,11 +13,11 @@ func main() {
 		log.Fatal("you must provide a file")
 	}
 
-	reader, err := os.Open(os.Args[1])
+	contents, err := ioutil.ReadFile(os.Args[1])
 	if err != nil {
 		log.Fatalf("could not read from file: %v", err)
 	}
-	node, err := evaluator.Evaluate(reader, os.Stdout)
+	node, err := evaluator.Evaluate(string(contents), os.Stdout)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)

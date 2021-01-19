@@ -58,7 +58,7 @@ type String struct {
 
 func (s String) Accept(visitor Visitor) (Node, error) { return visitor.VisitString(s) }
 func (String) IsReducible() bool                      { return false }
-func (s String) String() string                       { return strconv.Quote(s.Value) }
+func (s String) String() string                       { return s.Value }
 
 type Boolean struct {
 	Value bool
@@ -110,32 +110,27 @@ func (p *parser) ParseExpression() (Node, error) {
 		next = p.Next()
 
 		switch next.Type {
-		case tokenizer.BuiltIn:
-			switch next.Value {
-			case "define":
-				node, err := p.ParseDefinition()
-				if err != nil {
-					return nil, errors.New("could not parse definition")
-				}
-				return node, nil
-
-			case "if":
-				node, err := p.ParseIf()
-				if err != nil {
-					return nil, errors.New("could not parse if")
-				}
-				return node, nil
-
-			case "true", "false":
-				return nil, fmt.Errorf("'%s' cannot be called", next.Value)
-			default:
-				return nil, fmt.Errorf("unknown keyword '%s'", next.Value)
+		case tokenizer.Define:
+			node, err := p.ParseDefinition()
+			if err != nil {
+				return nil, errors.New("could not parse definition")
 			}
+			return node, nil
+
+		case tokenizer.If:
+			node, err := p.ParseIf()
+			if err != nil {
+				return nil, errors.New("could not parse if")
+			}
+			return node, nil
+
+		case tokenizer.Boolean:
+			return nil, fmt.Errorf("'%s' cannot be called", next.Value)
 
 		case tokenizer.Identifier:
 			return nil, errors.New("function call are not yet supported")
 		default:
-			return nil, next.Error("found %s where keyword or function name was expected", next.Type)
+			return nil, fmt.Errorf("found %s where keyword or function name was expected", next.Type)
 		}
 
 	case tokenizer.String:
@@ -144,14 +139,12 @@ func (p *parser) ParseExpression() (Node, error) {
 	case tokenizer.Identifier:
 		return Ref{Name: next.Value}, nil
 
-	case tokenizer.BuiltIn:
+	case tokenizer.Boolean:
 		switch next.Value {
-		case "true":
+		case ":true":
 			return Boolean{Value: true}, nil
-		case "false":
-			return Boolean{Value: false}, nil
 		default:
-			return nil, errors.New("unexpected built-in reference")
+			return Boolean{Value: false}, nil
 		}
 
 	default:

@@ -3,7 +3,6 @@ package tests
 import (
 	"cacophony/evaluator"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -41,7 +40,7 @@ func TestPrograms(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.in, func(t *testing.T) {
-			in, err := os.Open(filepath.Join("testdata", testCase.in))
+			in, err := ioutil.ReadFile(filepath.Join("testdata", testCase.in))
 			if err != nil {
 				t.Fatalf("could not read input file: %v", err)
 			}
@@ -53,7 +52,7 @@ func TestPrograms(t *testing.T) {
 			want := string(bytes)
 
 			var got strings.Builder
-			if _, err := evaluator.Evaluate(in, &got); err != nil {
+			if _, err := evaluator.Evaluate(string(in), &got); err != nil {
 				t.Fatalf("evaluation failed: %v", err)
 			}
 
