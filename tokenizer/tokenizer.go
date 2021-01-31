@@ -176,27 +176,36 @@ func lexBody(t *tokenizer) stateFn {
 
 func lexNumber(t *tokenizer) stateFn {
 	t.accept("+-")
-	digits := "0123456789_"
+	digits := "0123456789"
+	numDigits := 0
 	if t.accept("0") {
 		if t.accept("xX") {
 			digits += "abcdefABCDEF"
 		} else {
-			return t.errorf("illegal number")
+			numDigits++
 		}
 		// TODO: Maybe support octal and binary numbers too?
 	}
 
-	numDigits := t.acceptRun(digits)
+	numDigits += t.acceptRun(digits)
 	if t.accept(".") {
-		decimalDigits := t.acceptRun(digits)
-		if decimalDigits == 0 {
-			return t.errorf("illegal number")
-		}
-		numDigits += decimalDigits
+		numDigits += t.acceptRun(digits)
 	}
 	if numDigits == 0 {
 		return t.errorf("illegal number")
 	}
+
+	if t.accept("eE") {
+		t.accept("+-")
+		numDigits := t.acceptRun(digits)
+		if t.accept(".") {
+			numDigits += t.acceptRun(digits)
+		}
+		if numDigits == 0 {
+			return t.errorf("illegal number")
+		}
+	}
+
 	t.emit(Number)
 	return lexBody
 }
